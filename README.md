@@ -1,104 +1,26 @@
-# Bedrock Tools Plus
+# BTP — Bedrock Tools Plus by Saalpa
 
-## Introduction
+BTP by Saalpa is an Android arm64-v8a LeviLauncher native mod. It combines the Bedrock Tools module set with a custom BTP GUI while keeping Minecraft-native infrastructure in Bedrock TC.
 
-BedrockToolsPlus is an open-source native mod for Minecraft Bedrock on Android, made for [LeviLauncher](https://github.com/LiteLDev/LeviLaunchroid). It adds a collection of visual, HUD, player, and utility modules while also providing a small C++ SDK and event system for native mod development.
+## Architecture
 
-The source is public so people can study how a real LeviLauncher mod is structured, learn from it, and use the SDK as a starting point for their own mods.
+LeviLauncher → official Preloader Android SDK 0.2.2 → `libBTP.so` → BTP GUI + Bedrock TC.
 
-## Features
+Bedrock TC owns signatures, hooks, patches, memory, world/entity access, rendering adapters, events, input adapters, version abstraction and the 48 native modules. BTP owns presentation: custom GUI, module browser, HUD presentation, profiles, notifications and user settings.
 
-- Native C++20 mod built for LeviLauncher and Preloader
-- 36 configurable modules
-- Public headers for Minecraft wrappers, offsets, signatures, and utilities
-- Typed event system with runtime subscriptions for other native mods
-- LeviLauncher mod-menu integration and persistent configuration
-- Open-source and designed to be practical to extend
+## Build
 
-## Modules
+Android NDK 28.2.13676358, CMake 3.22+, arm64-v8a. Preloader is fetched from `LiteLDev/preloader-android` tag `0.2.2` using CMake `FetchContent`.
 
-**Visual:** Fullbright, Motion Blur, Fog Color, Glint Color, TNT Timer, NoFog, View Model, Third Person Nametag, Chunk Border, Hitbox, Zoom, Breadcrumbs, FPS Unlocker, Light Overlay, ShulkerPreview, Connected Glass
-
-**HUD:** Ping Counter, Reach Counter, Combo Display, Break Indicator, Player Coords, Compass, Speed Display, Debug Menu, Keystrokes, Tablist
-
-**Player:** Time Changer, Weather Changer, Nick, Skin Stealer, AutoGG, AutoReQ
-
-**Misc:** No Disconnect, Chat Timestamps, No Touch Border, CPS Limiter
-
-## System Requirements
-
-- Android 9 or newer
-- 64-bit ARM device (`arm64-v8a`)
-- [LeviLauncher](https://github.com/LiteLDev/LeviLaunchroid)
-- A Minecraft Bedrock version supported by the BedrockToolsPlus release you are using
-
-## Installation
-
-1. Install LeviLauncher.
-2. Download the latest `BedrockToolsPlus.levipack` release.
-3. Import the package from LeviLauncher's mod manager and enable it.
-4. Launch Minecraft through LeviLauncher.
-
-## Development Setup
-
-Requirements:
-
-- Android NDK r28c
-- xmake
-- Python 3
-
-Build for Android ARM64:
-
-```sh
-xmake f -y -p android -a arm64-v8a -m release --ndk=/path/to/android-ndk-r28c
-xmake -y
+```bash
+cmake -S . -B build-arm64-v8a -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26
+cmake --build build-arm64-v8a --target BTP levi_package --parallel
 ```
 
-The release build produces `libBedrockToolsPlus.so` and `BedrockToolsPlus.levipack` in the xmake target directory.
+The resulting native library is `libBTP.so` and the packaging target produces a `.levipack` archive.
 
-Public SDK headers are under `include/bedrocktoolsplus`. Shared runtime code lives under `src/core`, while features are kept under `src/modules` by category. Minecraft signatures and offsets are version-specific, so those are the main pieces that normally need updating for a new game build.
+## SDK rule
 
-Example event subscription from another native mod:
-
-```cpp
-#include <bedrocktoolsplus/BedrockToolsPlus.hpp>
-
-bedrocktoolsplus::events::RuntimeListener<bedrocktoolsplus::events::LocalPlayerTickEvent> listener(
-    [](auto& event) {
-        if (!event.player) return;
-        auto position = event.player->position();
-    }
-);
-```
-
-## Contributing
-
-Pull requests are highly appreciated. Keep changes focused, preserve the existing project structure, and test changes against the intended Minecraft version before submitting them.
-
-## Usage Guidelines
-
-Do not use LeviLauncher or BedrockToolsPlus to violate Mojang or Microsoft's user agreements.
-
-**Disclaimer:** The authors and contributors of BedrockToolsPlus and LeviLauncher are not responsible for bans, damages, or issues arising from the use of this software. Use it at your own risk and in accordance with Minecraft's terms of service.
-
-## Credits & Acknowledgements
-
-BedrockToolsPlus is made by [RadiantByte](https://github.com/RadiantByte).
-
-Special thanks to [dreamguxiang](https://github.com/dreamguxiang) for helping make this mod possible.
-
-Motion blur module based on [mcpelauncher-motion-blur](https://github.com/CrackedMatter/mcpelauncher-motion-blur) by [CrackedMatter](https://github.com/CrackedMatter).
-
-Thanks to [Kashifro](https://github.com/Kashifro) for the Shulker Preview and Tablist modules.
-
-Built for [LeviLauncher](https://github.com/LiteLDev/LeviLaunchroid).
-
-## Contact
-
-Discord: [discord.gg/rMgdpTFFVg](https://discord.gg/rMgdpTFFVg)
-
-**Report Issues:** Open an issue in this GitHub repository.
-
-## License
-
-BedrockToolsPlus is licensed under the [GNU General Public License v3.0](LICENSE).
+No fake `pl/*` headers are included. The project uses only the public Preloader SDK surface available from the pinned 0.2.2 release.

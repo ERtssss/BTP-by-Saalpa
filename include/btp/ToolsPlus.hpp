@@ -1,0 +1,10 @@
+#pragma once
+#include <btp/Version.hpp>
+#include <btp/core/Runtime.hpp>
+#include <btp/core/ModuleManager.hpp>
+#include <btp/core/Notifications.hpp>
+#include <btp/gui/Gui.hpp>
+#include <btp/hud/Hud.hpp>
+#include <btp/config/Config.hpp>
+#include <btp/profiles/Profiles.hpp>
+#include <btp/modules/ClientModules.hpp>

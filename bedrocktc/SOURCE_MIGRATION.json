@@ -1,0 +1,10 @@
+{
+  "project": "Bedrock TC",
+  "source": "BedrockTools-main.zip",
+  "registered_modules": 47,
+  "build_target": "BedrockTCCore static library",
+  "abi": "arm64-v8a",
+  "cxx": "C++20",
+  "android_ndk": "r28c",
+  "preloader": "external SDK/runtime dependency"
+}

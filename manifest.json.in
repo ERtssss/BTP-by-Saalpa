@@ -1,0 +1,11 @@
+{
+  "type": "preload-native",
+  "name": "Bedrock Tools Plus",
+  "author": "Saalpa",
+  "version": "1.0.0",
+  "entry": "libBTP.so",
+  "minecraft_versions": [],
+  "icon": "icon.png",
+  "overwrite_files": ["icon.png"],
+  "overwrite_folders": []
+}

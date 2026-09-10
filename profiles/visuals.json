@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "modules": {},
+  "hud": {
+    "watermark": {"visible": true, "x": 10, "y": 10, "scale": 1},
+    "array_list": {"visible": true, "x": 10, "y": 42, "scale": 1},
+    "custom_crosshair": {"visible": true, "x": 620, "y": 360, "scale": 1},
+    "notifications": {"visible": true, "x": 20, "y": 24, "scale": 1},
+    "performance_monitor": {"visible": true, "x": 10, "y": 700, "scale": 1}
+  },
+  "gui": {"visible": false, "category": 0, "search": ""}
+}

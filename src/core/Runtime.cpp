@@ -1,161 +1,122 @@
-#include "Runtime.hpp"
-#include "GameHooks.hpp"
-#include "config/ConfigManager.hpp"
-#include "launcher/ModuleMenu.hpp"
-#include "modules/ModuleRegistry.hpp"
-#include "core/memory/Hooks.hpp"
-#include <bedrocktoolsplus/events/EventBus.hpp>
-#include <bedrocktoolsplus/memory/Signatures.hpp>
-#include <pl/Input.hpp>
-#include <atomic>
-#include <cstring>
+#include <btp/core/Runtime.hpp>
+#include <btp/config/Config.hpp>
+#include <btp/profiles/Profiles.hpp>
+#include <btp/hud/Hud.hpp>
+#include <btp/modules/ClientModules.hpp>
+#include <btp/core/Notifications.hpp>
+#include <bedrocktc/BedrockTC.hpp>
+#include <system_error>
+#include <btp/debug/Log.hpp>
 #include <dlfcn.h>
-#include <fcntl.h>
-#include <mutex>
-#include <unistd.h>
+#include <btp/gui/Gui.hpp>
 
-namespace bedrocktoolsplus::core {
-namespace {
-std::atomic_bool enabled = false;
-std::atomic_bool resolved = false;
-std::atomic_bool installed = false;
-std::mutex resolveMutex;
-std::mutex installMutex;
-thread_local bool resolvingFromDlopen = false;
-void* (*dlopenOriginal)(const char*, int) = nullptr;
-bedrocktoolsplus::hooks::Handle dlopenHook = nullptr;
-bool eventsWired = false;
-int containerDepth = 0;
-int chatDepth = 0;
+namespace btp::core {
+Runtime& Runtime::get() { static Runtime instance; return instance; }
 
-class ResolveGuard {
-public:
-    ResolveGuard() : mPrevious(resolvingFromDlopen) { resolvingFromDlopen = true; }
-    ~ResolveGuard() { resolvingFromDlopen = mPrevious; }
-private:
-    bool mPrevious;
-};
+bool Runtime::load(ll::mod::NativeMod& self) {
+    BTP_LOGI("Runtime::load begin");
+    if (mActive.load()) { BTP_LOGI("Runtime::load already active"); return true; }
 
-void* dlopenDetour(const char* filename, int flags) {
-    void* handle = dlopenOriginal ? dlopenOriginal(filename, flags) : nullptr;
-    if (handle && filename && std::strstr(filename, "libminecraftpe.so") && !resolvingFromDlopen) {
-        Runtime::get().minecraftLoaded();
+    mOwnerModId = self.getId();
+    self.getLogger().info("BTP {} by {} v{}; entry={} library={} manifest={} icon={} modDir={} dataDir={} configDir={} resources={} JavaVM={} state={}",
+        self.getName(), self.getAuthor(), self.getVersion(), self.getEntryFileName(),
+        self.getLibraryPath().string(), self.getManifestPath().string(), self.getIconPath().string(),
+        self.getModDir().string(), self.getDataDir().string(), self.getConfigDir().string(),
+        self.getResourceDir().string(), static_cast<const void*>(self.getJavaVM()), static_cast<int>(self.getState()));
+
+    mConfigDir = self.getConfigDir();
+    if (mConfigDir.empty()) {
+        BTP_LOGE("Runtime::load config directory is empty");
+        return false;
     }
-    return handle;
-}
-}
 
-Runtime& Runtime::get() {
-    static Runtime runtime;
-    return runtime;
-}
+    btp::debug::setLogFile(mConfigDir / "btp-debug.log");
+    BTP_LOGI("Debug log file: %s", (mConfigDir / "btp-debug.log").string().c_str());
 
-const std::filesystem::path& Runtime::resourceDirectory() const noexcept {
-    return mResourceDirectory;
-}
+    std::error_code ec;
+    std::filesystem::create_directories(mConfigDir / "profiles", ec);
+    if (ec) {
+        BTP_LOGE("Runtime::load create_directories failed: %s", ec.message().c_str());
+        return false;
+    }
 
-bool Runtime::launcherContext() const {
-    int fd = open("/proc/self/cmdline", O_RDONLY);
-    if (fd < 0) return false;
-    char command[256]{};
-    const auto size = read(fd, command, sizeof(command) - 1);
-    close(fd);
-    if (size <= 0) return false;
-    return std::strcmp(command, "org.levimc.launcher") == 0
-        || std::strcmp(command, "org.levimc.launcher:minecraft") == 0
-        || std::strcmp(command, "com.mojang.minecraftpe") == 0;
-}
+    config::Config::get().setDirectory(mConfigDir);
+    bedrocktc::core::setOwnerModId(mOwnerModId);
+    bedrocktc::core::setConfigPath(mConfigDir / "bedrocktc.json");
+    bedrocktc::core::setResourceDirectory(self.getResourceDir());
+    profiles::Profiles::get().setDirectory(mConfigDir / "profiles");
 
-bool Runtime::resolveSignatures() {
-    std::lock_guard lock(resolveMutex);
-    if (resolved.load(std::memory_order_acquire)) return true;
-    ResolveGuard guard;
-    const bool ok = bedrocktoolsplus::memory::resolveAll("libminecraftpe.so");
-    resolved.store(ok, std::memory_order_release);
-    return ok;
-}
-
-void Runtime::wireEvents() {
-    if (eventsWired) return;
-    eventsWired = true;
-    using namespace bedrocktoolsplus::events;
-    bus().subscribe<FrameEvent>([](auto&) { ModuleRegistry::get().onFrame(); });
-    bus().subscribe<MouseInputEvent>([](auto& event) {
-        if (ModuleRegistry::get().onMouseEvent(event.button, event.down)) event.cancel();
-    });
-    bus().subscribe<ScreenStateEvent>([](auto& event) {
-        int& depth = event.screen == ScreenKind::Container ? containerDepth : chatDepth;
-        if (event.phase == ScreenPhase::Opened) ++depth;
-        else if (depth > 0) --depth;
-        ModuleRegistry::get().setKeybindBlocked(containerDepth > 0 || chatDepth > 0);
-    });
-    pl::input::registerMouseCallback([](const pl::input::MouseEvent& input) {
-        MouseInputEvent event{input.button, input.isDown};
-        bus().publish(event);
-        return event.cancelled();
-    });
-}
-
-bool Runtime::install() {
-    std::lock_guard lock(installMutex);
-    if (installed.load(std::memory_order_acquire)) return true;
-    if (!resolved.load(std::memory_order_acquire) && !resolveSignatures()) return false;
-    if (!gamehooks::install()) return false;
-    registerAllModules();
-    wireEvents();
-    ModuleRegistry::get().initialize();
-    bedrocktoolsplus::config::ConfigManager::get().load();
-    registerModulesWithLauncher();
-    installed.store(true, std::memory_order_release);
+    BTP_LOGI("Runtime::load complete: configDir=%s", mConfigDir.string().c_str());
     return true;
 }
 
-void Runtime::minecraftLoaded() {
-    if (!resolveSignatures()) return;
-    if (enabled.load(std::memory_order_acquire)) install();
-}
-
-bool Runtime::load(pl::mod::ModContext& context) {
-    mResourceDirectory = context.resourceDir();
-    bedrocktoolsplus::config::ConfigManager::get().setConfigPath((context.configDir() / "config.json").string());
-    if (!launcherContext()) return true;
-    void* minecraft = dlopen("libminecraftpe.so", RTLD_NOW | RTLD_NOLOAD);
-    if (minecraft) {
-        resolveSignatures();
-        dlclose(minecraft);
+bool Runtime::enable() {
+    BTP_LOGI("Runtime::enable begin");
+    if (mActive.exchange(true)) {
+        BTP_LOGI("Runtime::enable already active");
         return true;
     }
-    bedrocktoolsplus::hooks::LibraryHandle libdl = bedrocktoolsplus::hooks::openLibrary("libdl.so");
-    if (!libdl) return true;
-    void* symbol = reinterpret_cast<void*>(bedrocktoolsplus::hooks::symbol(libdl, "dlopen"));
-    if (symbol) dlopenHook = bedrocktoolsplus::hooks::install(symbol, reinterpret_cast<void*>(dlopenDetour), reinterpret_cast<void**>(&dlopenOriginal));
-    bedrocktoolsplus::hooks::closeLibrary(libdl);
+
+    // Same lifecycle as the working BedrockTools runtime:
+    // if Minecraft is already loaded, initialize immediately; otherwise
+    // BedrockTC installs its dlopen watcher and initializes when Minecraft
+    // loads libminecraftpe.so.
+    BTP_LOGI("Runtime::enable calling BedrockTC initializeIfMinecraftLoaded");
+    const bool initialized = bedrocktc::core::initializeIfMinecraftLoaded();
+    BTP_LOGI("Runtime::enable BedrockTC returned %s; ready=%s",
+             initialized ? "true" : "false",
+             bedrocktc::core::ready() ? "YES" : "NO");
+
+    auto finishPostInit = [this]() {
+        if (mPostInitDone || !bedrocktc::core::ready()) return;
+        mPostInitDone = true;
+        hud::Hud::get().initialize();
+        BTP_LOGI("Runtime::postInit HUD initialized");
+        if (!config::Config::get().load()) {
+            BTP_LOGW("Runtime::postInit BTP config load failed");
+        }
+        btp::gui::Gui::get().initialize();
+        BTP_LOGI("Runtime::postInit in-game GUI initialized");
+        if (mFrameSubscription) {
+            bedrocktc::events::bus().unsubscribe(mFrameSubscription);
+            mFrameSubscription = 0;
+        }
+        Notifications::get().push(NotificationType::Success, "BTP enabled");
+    };
+
+    // A frame callback lets the same code work when Minecraft loads after
+    // Runtime::enable(). BedrockTC wires the event bus during its BT-style
+    // initialization, so the callback becomes active on the next frame.
+    mFrameSubscription = bedrocktc::events::bus().subscribe<bedrocktc::events::FrameEvent>(
+        [finishPostInit](auto&) mutable { finishPostInit(); },
+        bedrocktc::events::EventPriority::Last);
+
+    if (initialized) finishPostInit();
+    else BTP_LOGI("Runtime::enable Minecraft is not ready yet; dlopen watcher will finish initialization");
+
+    BTP_LOGI("Runtime::enable complete");
     return true;
 }
 
-bool Runtime::enable(pl::mod::ModContext&) {
-    enabled.store(true, std::memory_order_release);
-    if (!launcherContext()) return true;
-    if (!resolved.load(std::memory_order_acquire)) {
-        void* minecraft = dlopen("libminecraftpe.so", RTLD_NOW | RTLD_NOLOAD);
-        if (!minecraft) return true;
-        resolveSignatures();
-        dlclose(minecraft);
+bool Runtime::disable() {
+    BTP_LOGI("Runtime::disable begin");
+    if (!mActive.exchange(false)) return true;
+
+    config::Config::get().save();
+    btp::gui::Gui::get().shutdown();
+    if (mFrameSubscription) {
+        bedrocktc::events::bus().unsubscribe(mFrameSubscription);
+        mFrameSubscription = 0;
     }
-    install();
+    mPostInitDone = false;
+    hud::Hud::get().shutdown();
+    modules::ClientModules::get().shutdown();
+    bedrocktc::core::shutdown();
+    BTP_LOGI("Runtime::disable complete");
     return true;
 }
 
-bool Runtime::disable(pl::mod::ModContext&) {
-    enabled.store(false, std::memory_order_release);
-    bedrocktoolsplus::config::ConfigManager::get().flush();
-    return true;
-}
-
-bool Runtime::unload(pl::mod::ModContext&) {
-    enabled.store(false, std::memory_order_release);
-    bedrocktoolsplus::config::ConfigManager::get().flush();
-    return true;
-}
-
+bool Runtime::unload() { return disable(); }
+bool Runtime::active() const noexcept { return mActive.load(); }
+const std::filesystem::path& Runtime::configDir() const noexcept { return mConfigDir; }
 }

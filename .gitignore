@@ -1,9 +1,6 @@
 build/
-.xmake/
 .vscode/
 .idea/
+*.iml
 .DS_Store
-compile_commands.json
-*.so
-*.levipack
-*.zip
+local.properties
