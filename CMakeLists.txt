@@ -64,10 +64,11 @@ endif()
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/bedrocktc" "${CMAKE_CURRENT_BINARY_DIR}/bedrocktc")
 file(GLOB_RECURSE BTP_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 add_library(BTPClient SHARED ${BTP_SOURCES})
-set_target_properties(BTPClient PROPERTIES PREFIX "" OUTPUT_NAME "libBTP")
+set_target_properties(BTPClient PROPERTIES PREFIX "" OUTPUT_NAME "BTP")
 target_include_directories(BTPClient PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/bedrocktc/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/bedrocktc/include/bedrocktc"
     "${LEVI_PRELOADER_INCLUDE_DIR}")
 target_link_libraries(BTPClient PRIVATE
     BedrockTCCore preloader nlohmann_json::nlohmann_json Boost::pfr magic_enum::magic_enum fmt::fmt
@@ -76,19 +77,3 @@ target_compile_options(BTPClient PRIVATE -fPIC -ffunction-sections -fdata-sectio
 target_link_options(BTPClient PRIVATE -flto -Wl,--gc-sections -Wl,--icf=all -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/manifest.json.in" "${CMAKE_CURRENT_BINARY_DIR}/manifest.json" @ONLY)
-
-
-# Build a real LeviLauncher package next to the native library.
-find_package(Python3 COMPONENTS Interpreter QUIET)
-if(Python3_Interpreter_FOUND)
-    add_custom_target(levi_package ALL
-        COMMAND ${Python3_EXECUTABLE}
-            "${CMAKE_CURRENT_SOURCE_DIR}/scripts/package_levipack.py"
-            --library "$<TARGET_FILE:BTPClient>"
-            --icon "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/btp.png"
-            --output "${CMAKE_CURRENT_BINARY_DIR}/BTP-by-Saalpa-1.0.0.levipack"
-        DEPENDS BTPClient
-        VERBATIM)
-else()
-    message(WARNING "Python3 not found: levi_package target will be unavailable")
-endif()

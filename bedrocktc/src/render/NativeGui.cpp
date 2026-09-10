@@ -44,37 +44,43 @@ ScreenViewRenderFn gScreenRenderOriginal = nullptr;
 void drawTextHook(void* self, void* font, const RectangleArea& area, const std::string& text,
                   const Color& color, TextAlignment alignment, float alpha,
                   const TextMeasureData& measure, const CaretMeasureData& caret) {
-    // MinecraftUIRenderContext is valid while ScreenView::render is executing.
-    // Capture the context/font here, but do NOT draw BTP from inside DrawText:
-    // doing so recursively enters the same vtable hook and can make the UI fail
-    // silently on some Bedrock builds.
     {
         std::lock_guard lock(gMutex);
         gContext = self;
         gFont = font;
     }
-
     static unsigned textLogs = 0;
     if (textLogs++ < 5) BTC_LOGI("DrawText hook reached: context=%p font=%p", self, font);
-    if (gDrawTextOriginal) {
-        gDrawTextOriginal(self, font, area, text, color, alignment, alpha, measure, caret);
+    if (gDrawTextOriginal) gDrawTextOriginal(self, font, area, text, color, alignment, alpha, measure, caret);
+
+    // ScreenViewRender is entered before Minecraft starts drawing text, so the
+    // render context is not available there yet. DrawText is the first reliable
+    // point where both the context and font are known. Run the overlay once per
+    // screen-render pass from here while the game's GL/UI rendering is active.
+    if (!gOverlayDrawnThisFrame.exchange(true)) {
+        OverlayCallback callback = nullptr;
+        {
+            std::lock_guard lock(gMutex);
+            callback = gCallback;
+        }
+        if (callback) {
+            BTC_LOGI("DrawText: overlay callback called");
+            callback();
+        } else {
+            static unsigned missingCallbackLogs = 0;
+            if (missingCallbackLogs++ < 5) BTC_LOGW("DrawText: overlay callback not installed");
+        }
     }
 }
 
 void screenRenderHook(void* self, void* a2, void* a3, void* a4, void* a5, void* a6, void* a7, void* a8) {
-    // The working BedrockTools pattern is: clear the previous render context,
-    // let Minecraft render its UI, then draw the custom overlay afterwards.
-    // DrawTextHook captures the active MinecraftUIRenderContext during the
-    // original render call, so the callback below runs with a valid context.
     {
         std::lock_guard lock(gMutex);
         gContext = nullptr;
         gFont = nullptr;
     }
-
-    if (gScreenRenderOriginal) {
-        gScreenRenderOriginal(self, a2, a3, a4, a5, a6, a7, a8);
-    }
+    gOverlayDrawnThisFrame.store(false);
+    if (gScreenRenderOriginal) gScreenRenderOriginal(self, a2, a3, a4, a5, a6, a7, a8);
 
     OverlayCallback callback = nullptr;
     void* context = nullptr;
@@ -85,22 +91,13 @@ void screenRenderHook(void* self, void* a2, void* a3, void* a4, void* a5, void* 
         context = gContext;
         font = gFont;
     }
-
     static unsigned frameLogs = 0;
-    if (frameLogs++ < 5) {
-        BTC_LOGI("ScreenViewRender hook: context=%p font=%p callback=%s",
-                 context, font, callback ? "yes" : "no");
-    }
-
-    if (callback && context && font) {
-        try {
-            callback();
-        } catch (const std::exception& e) {
-            BTC_LOGE("Overlay callback exception: %s", e.what());
-        } catch (...) {
-            BTC_LOGE("Overlay callback unknown exception");
-        }
-    }
+    if (frameLogs++ < 5) BTC_LOGI("ScreenViewRender hook: context=%p font=%p callback=%s", context, font, callback ? "yes" : "no");
+    // The overlay is triggered from DrawText, after the RenderContext is valid.
+    // Do not invoke it here because ScreenViewRender runs before DrawText.
+    (void)callback;
+    (void)context;
+    (void)font;
 }
 
 void snapshotContext(void*& context, void*& font) {
@@ -130,8 +127,6 @@ bool initialize() {
     bool textOk = installVtableHook("24MinecraftUIRenderContext", sdk::offsets::VTable::MinecraftUIRenderContextDrawText,
                                     reinterpret_cast<void*>(drawTextHook), reinterpret_cast<void**>(&gDrawTextOriginal));
     BTC_LOGI("NativeGui hooks: ScreenViewRender=%s DrawText=%s", screenOk ? "OK" : "FAIL", textOk ? "OK" : "FAIL");
-    // Both hooks are required: DrawText supplies the live render context and
-    // ScreenViewRender gives us a safe post-render point for the BTP overlay.
     if (!screenOk || !textOk) return false;
     gInitialized = true;
     BTC_LOGI("NativeGui initialize complete");

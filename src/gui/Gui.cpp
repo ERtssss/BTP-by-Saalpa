@@ -75,8 +75,10 @@ void Gui::initialize() {
         // the menu without adding a launcher dependency.
         if (!e.isKeyDown) return;
         if (e.keyCode == 111 || e.keyCode == 4 || e.keyCode == 142) {
-            Gui::get().toggle();
-            e.cancel();
+            if (inGame()) {
+                Gui::get().toggle();
+                e.cancel();
+            }
         }
     }, bedrocktc::events::EventPriority::Early);
 
@@ -170,10 +172,9 @@ void Gui::draw() {
 
     // Never render the BTP overlay on the title/login/launcher screens.
     // ClientInstance::localPlayer() is the game-state gate.
-    // The render context is a stronger and safer gate than localPlayer().
-    // ClientInstance::localPlayer() may still be null while the in-game UI
-    // render context is already valid, which previously made the menu invisible.
-    if (!bedrocktc::render::native::ready()) return;
+    if (!inGame()) {
+        return;
+    }
 
     if (!mVisible) {
         bedrocktc::render::native::fillRect(12, 12, 110, 48, CARD);
@@ -210,7 +211,7 @@ void Gui::selectModule(std::string id) { mSelectedModule = std::move(id); }
 const std::string& Gui::selectedModule() const noexcept { return mSelectedModule; }
 
 bool Gui::handleTouch(float x, float y) {
-    if (!mInitialized || !bedrocktc::render::native::ready()) return false;
+    if (!mInitialized || !inGame()) return false;
     const auto screen = bedrocktc::render::native::size();
     if (screen.width <= 0 || screen.height <= 0) return false;
     const float sx = BASE_W / screen.width;

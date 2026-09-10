@@ -10,6 +10,6 @@ cmake -S . -B build-arm64-v8a -G Ninja \
 cmake --build build-arm64-v8a --target BTP levi_package
 ```
 
-The generated native library is `libBTP.so`; the `levi_package` target produces `BTP-by-Saalpa-1.0.0.levipack`. The package contains a matching `manifest.json`, `libBTP.so`, and `icon.png`.
+The generated native library is `libBTP.so`; the package target produces a `.levipack`.
 
 No Preloader headers are copied into this repository and no fake `pl/*` implementation is used.
