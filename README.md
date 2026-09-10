@@ -1,8 +1,8 @@
-# BedrockToolsPlus
+# Bedrock Tools Plus
 
 ## Introduction
 
-BedrockToolsPlus is a community fork of BedrockTools and an open-source native mod for Minecraft Bedrock on Android, made for [LeviLauncher](https://github.com/LiteLDev/LeviLaunchroid). It adds a collection of visual, HUD, player, and utility modules while also providing a small C++ SDK and event system for native mod development.
+BedrockToolsPlus is an open-source native mod for Minecraft Bedrock on Android, made for [LeviLauncher](https://github.com/LiteLDev/LeviLaunchroid). It adds a collection of visual, HUD, player, and utility modules while also providing a small C++ SDK and event system for native mod development.
 
 The source is public so people can study how a real LeviLauncher mod is structured, learn from it, and use the SDK as a starting point for their own mods.
 
@@ -83,7 +83,7 @@ Do not use LeviLauncher or BedrockToolsPlus to violate Mojang or Microsoft's use
 
 ## Credits & Acknowledgements
 
-BedrockToolsPlus is maintained by Saalpa and is based on the original BedrockTools project by RadiantByte.
+BedrockToolsPlus is made by [RadiantByte](https://github.com/RadiantByte).
 
 Special thanks to [dreamguxiang](https://github.com/dreamguxiang) for helping make this mod possible.
 

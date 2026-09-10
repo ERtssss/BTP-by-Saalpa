@@ -22,6 +22,7 @@ struct InteractionResultValue {
     std::uint8_t value;
 };
 
+using VersionStringFn = std::string(*)(void*);
 using NormalTickFn = void(*)(void*);
 using StartDestroyBlockFn = bool(*)(void*, const void*, std::uint8_t, bool*);
 using StopDestroyBlockFn = void(*)(void*, const void*);
@@ -36,6 +37,7 @@ using ContainerSlotSelectedFn = std::uint32_t(*)(void*, const std::string&, int)
 using ScreenFn = void*(*)(void*, void*, void*, void*, void*, void*, void*, void*);
 using EglSwapBuffersFn = EGLBoolean(*)(EGLDisplay, EGLSurface);
 
+VersionStringFn versionOriginal = nullptr;
 NormalTickFn tickOriginal = nullptr;
 StartDestroyBlockFn gameModeStartDestroyBlockOriginal = nullptr;
 StartDestroyBlockFn survivalModeStartDestroyBlockOriginal = nullptr;
@@ -63,6 +65,7 @@ std::array<bedrocktoolsplus::hooks::Handle, 26> handles{};
 std::size_t handleCount = 0;
 std::mutex installMutex;
 bool installed = false;
+std::string gameVersion;
 thread_local std::uint32_t gameModeActionDepth = 0;
 
 template <class Function>
@@ -119,6 +122,12 @@ AttackKind attackKindFor(void* gameMode) {
     auto** vtable = *reinterpret_cast<void***>(gameMode);
     if (!vtable) return AttackKind::GameMode;
     return reinterpret_cast<std::uintptr_t>(vtable[16]) == survivalAttack ? AttackKind::SurvivalMode : AttackKind::GameMode;
+}
+
+std::string versionDetour(void* self) {
+    std::string version = versionOriginal ? versionOriginal(self) : std::string{};
+    if (gameVersion.empty()) gameVersion = version;
+    return std::string("\xC2\xA7" "b") + std::string(bedrocktoolsplus::Name) + " v" + std::string(bedrocktoolsplus::Version) + " " + "\xC2\xA7" "fby " + "\xC2\xA7" "e" + std::string(bedrocktoolsplus::Author) + " " + "\xC2\xA7" "f- " + "\xC2\xA7" "r" + version;
 }
 
 void tickDetour(void* actor) {
@@ -299,6 +308,7 @@ bool hookEgl() {
 bool install() {
     std::lock_guard lock(installMutex);
     if (installed) return true;
+    hookSignature(SignatureId::VersionString, reinterpret_cast<void*>(versionDetour), &versionOriginal);
     hookSignature(SignatureId::NormalTick, reinterpret_cast<void*>(tickDetour), &tickOriginal);
     hookSignature(SignatureId::GameModeStartDestroyBlock, reinterpret_cast<void*>(gameModeStartDestroyBlockDetour), &gameModeStartDestroyBlockOriginal);
     hookSignature(SignatureId::SurvivalModeStartDestroyBlock, reinterpret_cast<void*>(survivalModeStartDestroyBlockDetour), &survivalModeStartDestroyBlockOriginal);
