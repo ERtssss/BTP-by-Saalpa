@@ -1,6 +1,6 @@
 #include "debugmenu.hpp"
 #include <bedrocktc/Version.hpp>
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include "modules/player/timechanger.hpp"
 #include <bedrocktc/events/EventBus.hpp>
 #include <bedrocktc/sdk/Offsets.hpp>

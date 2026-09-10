@@ -57,8 +57,7 @@ bool Runtime::enable() {
         return true;
     }
 
-    // Same lifecycle as the working BedrockTools runtime:
-    // if Minecraft is already loaded, initialize immediately; otherwise
+        // if Minecraft is already loaded, initialize immediately; otherwise
     // BedrockTC installs its dlopen watcher and initializes when Minecraft
     // loads libminecraftpe.so.
     BTP_LOGI("Runtime::enable calling BedrockTC initializeIfMinecraftLoaded");

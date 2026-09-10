@@ -1,6 +1,6 @@
 {
   "type": "preload-native",
-  "name": "BTP",
+  "name": "BTP by Saalpa",
   "author": "Saalpa",
   "version": "1.0.0",
   "entry": "libBTP.so",

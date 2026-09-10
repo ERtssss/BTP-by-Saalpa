@@ -1,5 +1,5 @@
 #include "compass.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/events/EventBus.hpp>
 #include <bedrocktc/sdk/world/Actor.hpp>
 #include <cmath>

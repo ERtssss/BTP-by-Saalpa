@@ -1,5 +1,5 @@
 #include "reachcounter.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/events/EventBus.hpp>
 #include <bedrocktc/sdk/Offsets.hpp>
 #include <bedrocktc/memory/Signatures.hpp>

@@ -3,7 +3,6 @@
 #include <cctype>
 #include <exception>
 #include <nlohmann/json.hpp>
-#include <pl/ModMenu.hpp>
 #include <btp/debug/Log.hpp>
 #include "visual/fullbright.hpp"
 #include "visual/motionblur.hpp"
@@ -131,71 +130,6 @@ bool ModuleRegistry::keybindBlocked() const {
     return mKeybindBlocked;
 }
 
-
-void ModuleRegistry::registerModMenu(std::string_view ownerModId) {
-    BTP_LOGI("ModuleMenu: registering %zu modules", mView.size());
-    for (auto* module : mView) {
-        if (!module || !module->showInMenu) continue;
-        try {
-            pl::modmenu::ModuleBuilder builder(module->moduleId, module->name);
-        builder.modId(std::string(ownerModId))
-            .description(module->description)
-            .defaultEnabled(module->masterEnabled)
-            .hideInHudEditor(module->hideInHudEditor)
-            .config("masterEnabled", "Enabled", pl::modmenu::ConfigType::Toggle, module->masterEnabled ? "true" : "false")
-            .config("keybindActive", "Keybind Active", pl::modmenu::ConfigType::Toggle, module->keybindActive ? "true" : "false")
-            .config("keybind", "Keybind", pl::modmenu::ConfigType::SliderInt, std::to_string(module->keybind), "0", "255");
-
-        nlohmann::json settings;
-        module->saveConfig(settings);
-        for (const auto& [key, value] : settings.items()) {
-            if (key == "masterEnabled" || key == "keybindActive" || key == "keybind" || value.is_null()) continue;
-            if (value.is_boolean()) {
-                builder.config(key, key, pl::modmenu::ConfigType::Toggle, value.get<bool>() ? "true" : "false");
-            } else if (value.is_number_integer()) {
-                builder.config(key, key, pl::modmenu::ConfigType::SliderInt, std::to_string(value.get<int>()));
-            } else if (value.is_number_float()) {
-                builder.config(key, key, pl::modmenu::ConfigType::SliderFloat, std::to_string(value.get<float>()));
-            } else if (value.is_string()) {
-                const std::string lowerKey = [&] { std::string out = key; std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); }); return out; }();
-                const auto type = lowerKey.find("color") != std::string::npos ? pl::modmenu::ConfigType::Color : pl::modmenu::ConfigType::Radio;
-                builder.config(key, key, type, value.get<std::string>());
-            }
-        }
-
-        builder.onToggle([module](std::string_view, bool enabled) { module->setMasterEnabled(enabled); });
-        builder.onConfigChanged([module](std::string_view, std::string_view key, std::string_view value) {
-            if (module->onMenuConfigChanged(key, value)) return;
-            try {
-                nlohmann::json j; module->saveConfig(j);
-                const std::string k(key), v(value);
-                if (j.contains(k) && j[k].is_boolean()) j[k] = (v == "true" || v == "1");
-                else if (j.contains(k) && j[k].is_number_integer()) j[k] = std::stoi(v);
-                else if (j.contains(k) && j[k].is_number_float()) j[k] = std::stof(v);
-                else if (j.contains(k) && j[k].is_string()) j[k] = v;
-                else return;
-                module->loadConfig(j);
-            } catch (...) {}
-        });
-            if (builder.registerModule()) {
-                module->onMenuRegistered();
-            }
-        } catch (const std::exception& e) {
-            BTP_LOGE("ModuleMenu: failed to register %s: %s", module->moduleId.c_str(), e.what());
-        } catch (...) {
-            BTP_LOGE("ModuleMenu: failed to register %s: unknown exception", module->moduleId.c_str());
-        }
-    }
-}
-
-void ModuleRegistry::unregisterModMenu() {
-    for (auto* module : mView) {
-        if (!module) continue;
-        pl::modmenu::unregisterModule(module->moduleId);
-        pl::modmenu::unregisterButton(module->moduleId + ".button");
-        pl::modmenu::submitDrawCommands(module->moduleId, std::span<const pl::modmenu::DrawCommand>{});
-    }
-}
 
 void registerAllModules() {
     auto& registry = ModuleRegistry::get();

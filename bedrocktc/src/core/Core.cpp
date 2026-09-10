@@ -8,7 +8,6 @@
 #include <bedrocktc/hooks/Hooks.hpp>
 #include "hooks/GameHooks.hpp"
 #include <pl/Input.hpp>
-#include <pl/ModMenu.hpp>
 #include <dlfcn.h>
 #include <atomic>
 #include <cstring>

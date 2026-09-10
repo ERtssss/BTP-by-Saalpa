@@ -22,7 +22,6 @@ target_include_directories(BedrockTCCore
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PUBLIC "${LEVI_PRELOADER_INCLUDE_DIR}"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../include"
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
     PRIVATE "${CMAKE_BINARY_DIR}/_deps/nlohmann_json-src/include"
     PRIVATE "${CMAKE_BINARY_DIR}/_deps/glm-src"

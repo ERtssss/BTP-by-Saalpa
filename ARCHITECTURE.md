@@ -1,4 +1,4 @@
-# BTP Architecture
+# BTP by Saalpa — clean architecture
 
 ```text
 LeviLauncher
@@ -6,20 +6,27 @@ LeviLauncher
 Preloader Android SDK 0.2.2
     ↓
 libBTP.so
-    ├── BTP GUI / presentation
-    └── Bedrock TC / native technical core
-             ↓
-       Minecraft Bedrock
+    ├── BTP Client
+    │   ├── GUI
+    │   ├── HUD presentation
+    │   ├── Profiles
+    │   ├── Config
+    │   └── Notifications
+    │
+    └── Bedrock TC
+        ├── SDK
+        ├── Memory / Hooks
+        ├── Signatures / Offsets
+        ├── Events / Input
+        ├── Rendering bridge
+        ├── World / Entity / Network
+        └── Built-in modules
 ```
 
-## BTP
+## Responsibility
 
-Owns the custom Bedrock Tools-style GUI, module browser, search, profiles, notifications, HUD presentation and user-facing settings.
+**BTP Client** contains only user-facing functionality.
 
-## Bedrock TC
+**Bedrock TC** is the technical core. It owns the Minecraft integration and the complete built-in module registry.
 
-Owns Minecraft-native infrastructure and the complete 48-module registry. BTP never duplicates those module objects.
-
-## Cleanup
-
-Native hooks and patches are owned by the TC lifecycle. Mod Menu registrations and draw-command ownership are cleaned up by their respective owners. Input callbacks follow the limitations of the pinned public SDK and use static runtime state so they cannot retain destroyed GUI objects.
+There is no second BTP module registry, no legacy launcher-side module menu and no duplicate game-hook layer.

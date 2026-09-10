@@ -1,5 +1,5 @@
 #include "pingcounter.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/memory/Signatures.hpp>
 #include <bedrocktc/hooks/Hooks.hpp>
 #include <bedrocktc/sdk/Memory.hpp>

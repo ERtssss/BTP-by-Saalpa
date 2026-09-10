@@ -1,6 +1,6 @@
 #include "arrowcounter.hpp"
-#include "core/InventoryAccess.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/core/InventoryAccess.hpp>
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <algorithm>
 #include <bedrocktc/events/EventBus.hpp>
 #include <charconv>

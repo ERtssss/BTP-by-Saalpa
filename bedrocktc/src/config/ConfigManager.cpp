@@ -1,5 +1,5 @@
 #include "ConfigManager.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <pl/Config.hpp>
 namespace bedrocktc::config {
 ConfigManager& ConfigManager::get() { static ConfigManager instance; return instance; }

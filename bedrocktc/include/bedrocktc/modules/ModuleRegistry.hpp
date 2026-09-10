@@ -1,6 +1,5 @@
 #pragma once
 #include "Module.hpp"
-#include <pl/ModMenu.hpp>
 #include <memory>
 #include <type_traits>
 #include <string>
@@ -49,8 +48,6 @@ public:
     const std::vector<Module*>& modules() const;
     void initialize();
     void shutdown();
-    void registerModMenu(std::string_view ownerModId);
-    void unregisterModMenu();
     void onFrame();
     bool onMouseEvent(int button, bool isDown);
     void setKeybindBlocked(bool blocked);

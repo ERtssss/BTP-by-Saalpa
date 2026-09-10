@@ -1,7 +1,7 @@
 #include "potionhud.hpp"
 #include "potionhud_assets.hpp"
 #include <bedrocktc/hooks/Hooks.hpp>
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/sdk/Offsets.hpp>
 #include <bedrocktc/sdk/input/MoveInput.hpp>
 #include <bedrocktc/sdk/world/MobEffects.hpp>

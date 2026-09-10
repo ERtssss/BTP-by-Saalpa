@@ -1,5 +1,5 @@
 #include "tablist.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/memory/Signatures.hpp>
 #include <bedrocktc/sdk/Memory.hpp>
 #include <bedrocktc/sdk/Offsets.hpp>

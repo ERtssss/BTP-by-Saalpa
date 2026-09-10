@@ -1,5 +1,5 @@
 #include "breakindicator.hpp"
-#include "modules/ModuleRegistry.hpp"
+#include <bedrocktc/modules/ModuleRegistry.hpp>
 #include <bedrocktc/events/EventBus.hpp>
 #include <bedrocktc/events/GameModeActionEvent.hpp>
 #include <bedrocktc/sdk/Offsets.hpp>
